@@ -5105,12 +5105,8 @@ var _clear = new WeakSet();
 
 var _generateMarkup = new WeakSet();
 
-var _generateMarkupIngredient = new WeakSet();
-
 class RecipeView {
   constructor() {
-    _generateMarkupIngredient.add(this);
-
     _generateMarkup.add(this);
 
     _clear.add(this);
@@ -5208,7 +5204,20 @@ var _generateMarkup2 = function _generateMarkup2() {
           <h2 class="heading--2">Recipe ingredients</h2>
           <ul class="recipe__ingredient-list">
 
-            ${_classPrivateFieldGet(this, _data).ingredients.map(_classPrivateMethodGet(this, _generateMarkupIngredient, _generateMarkupIngredient2)).join('')}
+            ${_classPrivateFieldGet(this, _data).ingredients.map(ing => {
+    return `
+              <li class="recipe__ingredient">
+              <svg class="recipe__icon">
+                <use href="${_icons.default}#icon-check"></use>
+              </svg>
+              <div class="recipe__quantity">${ing.quantity ? new _fractional.Fraction(ing.quantity).toString() : ''}</div>
+              <div class="recipe__description">
+                <span class="recipe__unit">${ing.unit}</span>
+                ${ing.description}
+              </div>
+            </li>
+              `;
+  }).join('')}
 
             
           </ul>
@@ -5232,21 +5241,6 @@ var _generateMarkup2 = function _generateMarkup2() {
             </svg>
           </a>
         </div>`;
-};
-
-var _generateMarkupIngredient2 = function _generateMarkupIngredient2(ing) {
-  return `
-  <li class="recipe__ingredient">
-  <svg class="recipe__icon">
-    <use href="${_icons.default}#icon-check"></use>
-  </svg>
-  <div class="recipe__quantity">${ing.quantity ? new _fractional.Fraction(ing.quantity).toString() : ''}</div>
-  <div class="recipe__description">
-    <span class="recipe__unit">${ing.unit}</span>
-    ${ing.description}
-  </div>
-</li>
-  `;
 };
 
 var _default = new RecipeView();
