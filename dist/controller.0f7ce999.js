@@ -594,8 +594,13 @@ const controlAddRecipe = async function (newRecipe) {
     _recipeView.default.render(model.state.recipe); //Display success message
 
 
-    _addRecipeView.default.renderMessage(); // Close form window
+    _addRecipeView.default.renderMessage(); // Render bokmark view
 
+
+    _bookmarksView.default.render(model.state.bookmarks); //change ID in URL
+
+
+    window.history.pushState(null, '', `#${model.state.recipe.id}`); // Close form window
 
     setTimeout(function () {
       _addRecipeView.default.toggleWindow();
@@ -5164,6 +5169,7 @@ var _config = require("./config.js");
 
 var _helpers = require("./helpers.js");
 
+// import { getJSON, sendJSON } from './helpers.js';
 const state = {
   recipe: {},
   search: {
@@ -5197,8 +5203,8 @@ const createRecipeObject = function (data) {
 
 const loadRecipe = async function (id) {
   try {
-    const data = await (0, _helpers.getJSON)(`
-    ${_config.API_URL}${id}`);
+    const data = await (0, _helpers.AJAX)(`
+    ${_config.API_URL}${id}?key=${_config.KEY}`);
     state.recipe = createRecipeObject(data);
     if (state.bookmarks.some(bookmark => bookmark.id === id)) state.recipe.bookmarked = true;else state.recipe.bookmarked = false;
     console.log(state.recipe);
@@ -5214,14 +5220,17 @@ exports.loadRecipe = loadRecipe;
 const loadSearchResults = async function (query) {
   try {
     state.search.query = query;
-    const data = await (0, _helpers.getJSON)(`${_config.API_URL}?search=${query}`);
+    const data = await (0, _helpers.AJAX)(`${_config.API_URL}?search=${query}&key=${_config.KEY}`);
     console.log(data);
     state.search.results = data.data.recipes.map(rec => {
       return {
         id: rec.id,
         title: rec.title,
         publisher: rec.publisher,
-        image: rec.image_url
+        image: rec.image_url,
+        ...(rec.key && {
+          key: rec.key
+        })
       };
     });
     state.search.page = 1;
@@ -5294,7 +5303,8 @@ const clearBookmarks = function () {
 const uploadRecipe = async function (newRecipe) {
   try {
     const ingredients = Object.entries(newRecipe).filter(entry => entry[0].startsWith('ingredient') && entry[1] !== '').map(ing => {
-      const ingArr = ing[1].replaceAll(' ', '').split(',');
+      const ingArr = ing[1].split(',').map(el => el.trim()); // const ingArr = ing[1].replaceAll(' ', '').split(',');
+
       if (ingArr.length !== 3) throw new Error('Wrong ingrdient format! Please use the correct format :)');
       const [quantity, unit, description] = ingArr;
       return {
@@ -5312,7 +5322,7 @@ const uploadRecipe = async function (newRecipe) {
       servings: +newRecipe.servings,
       ingredients
     };
-    const data = await (0, _helpers.sendJSON)(`${_config.API_URL}?key=${_config.KEY}`, recipe);
+    const data = await (0, _helpers.AJAX)(`${_config.API_URL}?key=${_config.KEY}`, recipe);
     console.log(data);
     state.recipe = createRecipeObject(data);
     addBookmark(state.recipe);
@@ -6095,7 +6105,7 @@ exports.MODAL_CLOSE_SEC = MODAL_CLOSE_SEC;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.sendJSON = exports.getJSON = void 0;
+exports.AJAX = void 0;
 
 var _regeneratorRuntime = require("regenerator-runtime");
 
@@ -6111,29 +6121,15 @@ const timeout = function (s) {
   });
 };
 
-const getJSON = async function (url) {
+const AJAX = async function (url, uploadData = undefined) {
   try {
-    const res = await Promise.race([fetch(url), timeout(_config.TIMEOUT_SEC)]);
-    const data = await res.json();
-    if (!res.ok) throw new Error(`${data.message} (${res.status})`);
-    return data;
-  } catch (err) {
-    //console.log(err);
-    throw err;
-  }
-};
-
-exports.getJSON = getJSON;
-
-const sendJSON = async function (url, uploadData) {
-  try {
-    const fetchPro = fetch(url, {
+    const fetchPro = uploadData ? fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(uploadData)
-    });
+    }) : fetch(url);
     const res = await Promise.race([fetchPro, timeout(_config.TIMEOUT_SEC)]);
     const data = await res.json();
     if (!res.ok) throw new Error(`${data.message} (${res.status})`);
@@ -6143,8 +6139,42 @@ const sendJSON = async function (url, uploadData) {
     throw err;
   }
 };
+/*export const getJSON = async function (url) {
+  try {
+    const res = await Promise.race([fetch(url), timeout(TIMEOUT_SEC)]);
+    const data = await res.json();
 
-exports.sendJSON = sendJSON;
+    if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+    return data;
+  } catch (err) {
+    //console.log(err);
+    throw err;
+  }
+};
+
+export const sendJSON = async function (url, uploadData) {
+  try {
+    const fetchPro = fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(uploadData),
+    });
+    const res = await Promise.race([fetchPro, timeout(TIMEOUT_SEC)]);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+    return data;
+  } catch (err) {
+    //console.log(err);
+    throw err;
+  }
+};
+*/
+
+
+exports.AJAX = AJAX;
 },{"regenerator-runtime":"e155e0d3930b156f86c48e8d05522b16","./config.js":"09212d541c5c40ff2bd93475a904f8de","./model.js":"aabf248f40f7693ef84a0cb99f385d1f"}],"bcae1aced0301b01ccacb3e6f7dfede8":[function(require,module,exports) {
 "use strict";
 
@@ -6236,9 +6266,11 @@ class RecipeView extends _View.default {
             </div>
           </div>
 
-          <div class="recipe__user-generated">
-           
-          </div>
+          <div class="recipe__user-generated ${this._data.key ? '' : 'hidden'}">
+          <svg>
+            <use href="${_icons.default}#icon-user"></use>
+          </svg>
+        </div>
           <button class="btn--round btn--bookmark">
             <svg class="">
               <use href="${_icons.default}#icon-bookmark${this._data.bookmarked ? '-fill' : ''}"></use>
@@ -7011,9 +7043,14 @@ class PreviewView extends _View.default {
       </figure>
       <div class="preview__data">
         <h4 class="preview__title">${this._data.title}</h4>
-        <p class="preview__publisher">${this._data.publisher}</p>
-        
-      </div>
+        <p class="preview__publisher">${this._data.publisher}</p>   
+    
+      <div class="preview__user-generated ${this._data.key ? '' : 'hidden'}">
+      <svg>
+        <use href="${_icons.default}#icon-user"></use>
+      </svg>
+    </div>
+    </div>
     </a>
   </li>
     `;
