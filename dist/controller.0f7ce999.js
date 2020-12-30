@@ -503,7 +503,8 @@ const controlRecipes = async function () {
     _recipeView.default.renderSpinner(); //0) Update results view to mark selected search result
 
 
-    _resultsView.default.update(model.getSearchResutlspage());
+    _resultsView.default.update(model.getSearchResutlspage()); // Updating bookmarks view
+
 
     _bookmarksView.default.update(model.state.bookmarks); //1. Loading Recipe
 
@@ -572,7 +573,13 @@ const controlAddBookmark = function () {
   _bookmarksView.default.render(model.state.bookmarks);
 };
 
+const controlBookmarks = function () {
+  _bookmarksView.default.render(model.state.bookmarks);
+};
+
 const init = function () {
+  _bookmarksView.default.addHandlerRender(controlBookmarks);
+
   _recipeView.default.addHandlerRender(controlRecipes);
 
   _recipeView.default.addHandlerUpdateServings(controlServings);
@@ -5208,11 +5215,16 @@ const updateServings = function (newServings) {
 
 exports.updateServings = updateServings;
 
+const persistBookmarks = function () {
+  localStorage.setItem('bookmarks', JSON.stringify(state.bookmarks));
+};
+
 const addBookmark = function (recipe) {
   //Add bookmark
   state.bookmarks.push(recipe); //Mark current recipe as bookmarked
 
   if (recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+  persistBookmarks();
 };
 
 exports.addBookmark = addBookmark;
@@ -5222,9 +5234,22 @@ const deleteBookmark = function (id) {
   state.bookmarks.splice(index, 1); //Mark current recipe as not bookmarked
 
   if (id === state.recipe.id) state.recipe.bookmarked = false;
+  persistBookmarks();
 };
 
 exports.deleteBookmark = deleteBookmark;
+
+const init = function () {
+  const storage = localStorage.getItem('bookmarks');
+  if (storage) state.bookmarks = JSON.parse(storage);
+  23;
+};
+
+init();
+
+const clearBookmarks = function () {
+  localStorage.clear('bookmarks');
+}; //clearBookmarks();
 },{"regenerator-runtime":"e155e0d3930b156f86c48e8d05522b16","./config.js":"09212d541c5c40ff2bd93475a904f8de","./helpers.js":"0e8dcd8a4e1c61cf18f78e1c2563655d"}],"e155e0d3930b156f86c48e8d05522b16":[function(require,module,exports) {
 /**
  * Copyright (c) 2014-present, Facebook, Inc.
@@ -6846,7 +6871,6 @@ class ResultsView extends _View.default {
   }
 
   _generateMarkup() {
-    console.log(this._data);
     return this._data.map(result => _previewView.default.render(result, false)).join('');
   }
 
@@ -7019,8 +7043,11 @@ class BookmarksView extends _View.default {
     _defineProperty(this, "_message", '');
   }
 
+  addHandlerRender(handler) {
+    window.addEventListener('load', handler);
+  }
+
   _generateMarkup() {
-    console.log(this._data);
     return this._data.map(bookmark => _previewView.default.render(bookmark, false)).join('');
   }
 
